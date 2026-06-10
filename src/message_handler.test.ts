@@ -2,14 +2,35 @@
  * Tests for Message Handler V2 Module
  */
 
-import {describe, it, expect, beforeEach, vi, afterEach} from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  vi,
+  afterEach,
+  type Mock,
+} from 'vitest';
 import {
   handleStreamTokenStarted,
   handleMessageReceived,
   handleGenerationEnded,
   handleChatChanged,
   cancelAllDelayedReconciliations,
+  runIndependentApiGenerationForMessage,
 } from './message_handler';
+import {generatePromptsForMessage} from './services/prompt_generation_service';
+import {insertPromptTagsWithContext} from './prompt_insertion';
+import {saveMetadata} from './metadata';
+
+type MockSessionManager = {
+  startStreamingSession: Mock;
+  setupStreamingCompletion: Mock;
+  finalizeStreamingAndInsert: Mock;
+  getSession: Mock;
+  cancelSession: Mock;
+  getAllSessions: Mock;
+};
 
 // Mock dependencies
 vi.mock('./logger', () => ({
@@ -25,11 +46,20 @@ vi.mock('./logger', () => ({
 vi.mock('./session_manager', () => ({
   sessionManager: {
     startStreamingSession: vi.fn(),
+    setupStreamingCompletion: vi.fn(),
     finalizeStreamingAndInsert: vi.fn(),
     getSession: vi.fn(),
     cancelSession: vi.fn(),
     getAllSessions: vi.fn(() => []),
   },
+}));
+
+vi.mock('./services/prompt_generation_service', () => ({
+  generatePromptsForMessage: vi.fn(),
+}));
+
+vi.mock('./prompt_insertion', () => ({
+  insertPromptTagsWithContext: vi.fn(),
 }));
 
 vi.mock('./utils/message_renderer', () => ({
@@ -48,37 +78,58 @@ vi.mock('./reconciliation', () => ({
   })),
 }));
 
-// Mock global SillyTavern
-global.SillyTavern = {
+const mockSillyTavern = {
   getContext: vi.fn(),
-} as any;
+} as unknown as typeof SillyTavern; // Partial test double for the global API.
+global.SillyTavern = mockSillyTavern;
 
 describe('Message Handler V2', () => {
-  let mockContext: any;
-  let mockSettings: any;
-  let mockSessionManager: any;
+  let mockContext: SillyTavernContext;
+  let mockSettings: AutoIllustratorSettings;
+  let mockSessionManager: MockSessionManager;
 
   beforeEach(async () => {
     // Get the mocked sessionManager
     const {sessionManager} = await import('./session_manager');
-    mockSessionManager = sessionManager;
+    mockSessionManager = sessionManager as unknown as MockSessionManager;
     mockContext = {
       chat: [
         {mes: 'Message 0', is_user: true},
         {mes: 'Message 1', is_user: false, name: 'Assistant'},
         {mes: 'Message 2', is_user: false, name: 'Assistant'},
       ],
-    };
+    } as unknown as SillyTavernContext; // Tests only need chat.
 
     mockSettings = {
       streamingEnabled: true,
-      promptDetectionPatterns: ['<!--img-prompt="([^"]+)"-->'],
+      promptDetectionPatterns: ['<!--img-prompt="{PROMPT}"-->'],
       promptGenerationMode: 'regex', // Default to regex mode
       maxPromptsPerMessage: 5,
-    };
+    } as unknown as AutoIllustratorSettings; // Tests only need these settings.
 
-    // Clear all mocks
+    global.toastr = {
+      success: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+    } satisfies Toastr;
+
+    // Clear all mocks and set defaults
     vi.clearAllMocks();
+    mockSessionManager.startStreamingSession.mockResolvedValue({
+      sessionId: 'session1',
+      messageId: 1,
+      type: 'streaming',
+    });
+    mockSessionManager.setupStreamingCompletion.mockReturnValue(undefined);
+    mockSessionManager.finalizeStreamingAndInsert.mockResolvedValue(0);
+    mockSessionManager.getSession.mockReturnValue(null);
+    vi.mocked(generatePromptsForMessage).mockResolvedValue([]);
+    vi.mocked(insertPromptTagsWithContext).mockReturnValue({
+      updatedText: 'Message 1',
+      insertedCount: 0,
+      failedSuggestions: [],
+    });
   });
 
   afterEach(() => {
@@ -113,6 +164,127 @@ describe('Message Handler V2', () => {
       ).resolves.not.toThrow();
 
       expect(mockSessionManager.startStreamingSession).toHaveBeenCalled();
+    });
+  });
+
+  describe('runIndependentApiGenerationForMessage', () => {
+    beforeEach(() => {
+      mockSettings.promptGenerationMode = 'independent-api';
+    });
+
+    it('should insert prompts and start generation for manual happy path', async () => {
+      vi.mocked(generatePromptsForMessage).mockResolvedValue([
+        {
+          text: 'forest, moonlight',
+          insertAfter: 'Message',
+          insertBefore: '1',
+          reasoning: 'visual scene',
+        },
+      ]);
+      vi.mocked(insertPromptTagsWithContext).mockReturnValue({
+        updatedText: 'Message <!--img-prompt="forest, moonlight"--> 1',
+        insertedCount: 1,
+        failedSuggestions: [],
+      });
+
+      const result = await runIndependentApiGenerationForMessage(
+        1,
+        mockContext,
+        mockSettings,
+        'manual'
+      );
+
+      expect(mockContext.chat[1].mes).toBe(
+        'Message <!--img-prompt="forest, moonlight"--> 1'
+      );
+      expect(saveMetadata).toHaveBeenCalled();
+      expect(mockSessionManager.startStreamingSession).toHaveBeenCalledWith(
+        1,
+        mockContext,
+        mockSettings
+      );
+      expect(mockSessionManager.setupStreamingCompletion).toHaveBeenCalledWith(
+        1,
+        mockContext,
+        mockSettings
+      );
+      expect(result).toEqual({
+        status: 'started',
+        reason: 'started',
+        promptCount: 1,
+        insertedCount: 1,
+        appendedCount: 0,
+      });
+    });
+
+    it('should surface rejected prompt generation without starting a session', async () => {
+      vi.mocked(generatePromptsForMessage).mockRejectedValue(
+        new Error('LLM error')
+      );
+
+      const result = await runIndependentApiGenerationForMessage(
+        1,
+        mockContext,
+        mockSettings,
+        'manual'
+      );
+
+      expect(result).toMatchObject({
+        status: 'failed',
+        reason: 'prompt-generation-failed',
+      });
+      expect(toastr.warning).toHaveBeenCalledWith(
+        'toast.llmPromptGenerationFailed',
+        'extensionName'
+      );
+      expect(mockSessionManager.startStreamingSession).not.toHaveBeenCalled();
+    });
+
+    it('should warn and skip when manual prompt generation returns no prompts', async () => {
+      vi.mocked(generatePromptsForMessage).mockResolvedValue([]);
+
+      const result = await runIndependentApiGenerationForMessage(
+        1,
+        mockContext,
+        mockSettings,
+        'manual'
+      );
+
+      expect(result).toMatchObject({
+        status: 'skipped',
+        reason: 'no-prompts',
+      });
+      expect(toastr.warning).toHaveBeenCalledWith(
+        'toast.noPromptsGenerated',
+        'extensionName'
+      );
+      expect(mockSessionManager.startStreamingSession).not.toHaveBeenCalled();
+    });
+
+    it('should skip active sessions without calling prompt generation', async () => {
+      mockSessionManager.getSession.mockReturnValue({
+        sessionId: 'session1',
+        messageId: 1,
+        type: 'streaming',
+      });
+
+      const result = await runIndependentApiGenerationForMessage(
+        1,
+        mockContext,
+        mockSettings,
+        'manual'
+      );
+
+      expect(result).toMatchObject({
+        status: 'skipped',
+        reason: 'active-session',
+      });
+      expect(toastr.warning).toHaveBeenCalledWith(
+        'toast.cannotManualWhileStreaming',
+        'extensionName'
+      );
+      expect(generatePromptsForMessage).not.toHaveBeenCalled();
+      expect(mockSessionManager.startStreamingSession).not.toHaveBeenCalled();
     });
   });
 

@@ -11,12 +11,16 @@
 import {sessionManager} from './session_manager';
 import {createLogger} from './logger';
 import {generatePromptsForMessage} from './services/prompt_generation_service';
-import {insertPromptTagsWithContext} from './prompt_insertion';
+import {
+  insertPromptTagsWithContext,
+  type PromptSuggestion,
+} from './prompt_insertion';
 import {isIndependentApiMode} from './mode_utils';
 import {reconcileMessage} from './reconciliation';
 import {getMetadata, saveMetadata} from './metadata';
 import {renderMessageUpdate} from './utils/message_renderer';
 import {attachRegenerationHandlers} from './manual_generation';
+import {t} from './i18n';
 
 const logger = createLogger('MessageHandler');
 
@@ -134,6 +138,172 @@ export async function handleStreamTokenStarted(
   }
 }
 
+export type IndependentApiGenerationReason =
+  | 'started'
+  | 'not-independent-mode'
+  | 'message-not-found'
+  | 'user-message'
+  | 'active-session'
+  | 'prompt-generation-failed'
+  | 'no-prompts'
+  | 'no-inserted-prompts'
+  | 'session-start-failed';
+
+export interface IndependentApiGenerationResult {
+  status: 'started' | 'skipped' | 'failed';
+  reason: IndependentApiGenerationReason;
+  promptCount: number;
+  insertedCount: number;
+  appendedCount: number;
+}
+
+export async function runIndependentApiGenerationForMessage(
+  messageId: number,
+  context: SillyTavernContext,
+  settings: AutoIllustratorSettings,
+  source: 'automatic' | 'manual'
+): Promise<IndependentApiGenerationResult> {
+  const emptyResult = (
+    status: IndependentApiGenerationResult['status'],
+    reason: IndependentApiGenerationReason
+  ): IndependentApiGenerationResult => ({
+    status,
+    reason,
+    promptCount: 0,
+    insertedCount: 0,
+    appendedCount: 0,
+  });
+
+  if (!isIndependentApiMode(settings.promptGenerationMode)) {
+    return emptyResult('skipped', 'not-independent-mode');
+  }
+
+  const message = context.chat?.[messageId];
+  if (!message) {
+    logger.warn(`Message ${messageId} not found in chat`);
+    return emptyResult('skipped', 'message-not-found');
+  }
+
+  if (message.is_user) {
+    logger.debug('Skipping user message');
+    return emptyResult('skipped', 'user-message');
+  }
+
+  if (sessionManager.getSession(messageId)) {
+    if (source === 'manual') {
+      toastr.warning(t('toast.cannotManualWhileStreaming'), t('extensionName'));
+    }
+    return emptyResult('skipped', 'active-session');
+  }
+
+  let prompts: PromptSuggestion[];
+  try {
+    prompts = await generatePromptsForMessage(
+      message.mes || '',
+      context,
+      settings
+    );
+  } catch (error) {
+    logger.error('LLM prompt generation failed:', error);
+    toastr.warning(t('toast.llmPromptGenerationFailed'), t('extensionName'));
+    return emptyResult('failed', 'prompt-generation-failed');
+  }
+
+  if (prompts.length === 0) {
+    logger.info('LLM returned no prompts, skipping image generation');
+    if (source === 'manual') {
+      toastr.warning(t('toast.noPromptsGenerated'), t('extensionName'));
+    }
+    return emptyResult('skipped', 'no-prompts');
+  }
+
+  logger.info(`LLM generated ${prompts.length} prompts`);
+
+  const tagTemplate =
+    settings.promptDetectionPatterns[0] || '<!--img-prompt="{PROMPT}"-->';
+  const insertionResult = insertPromptTagsWithContext(
+    message.mes || '',
+    prompts,
+    tagTemplate
+  );
+
+  let finalText = insertionResult.updatedText;
+  let totalInserted = insertionResult.insertedCount;
+
+  if (insertionResult.failedSuggestions.length > 0) {
+    logger.warn(
+      `Failed to insert ${insertionResult.failedSuggestions.length} prompts (context not found), appending at end`
+    );
+
+    const promptTagTemplate = tagTemplate.includes('{PROMPT}')
+      ? tagTemplate
+      : '<!--img-prompt="{PROMPT}"-->';
+
+    for (const failed of insertionResult.failedSuggestions) {
+      const promptTag = promptTagTemplate.replace('{PROMPT}', failed.text);
+      finalText += ` ${promptTag}`;
+      totalInserted++;
+      logger.debug(
+        `Appended failed prompt at end: "${failed.text.substring(0, 50)}..."`
+      );
+    }
+  }
+
+  const appendedCount = insertionResult.failedSuggestions.length;
+  if (totalInserted === 0) {
+    logger.warn('No prompts generated or inserted');
+    toastr.warning(
+      source === 'manual'
+        ? t('toast.noPromptsGenerated')
+        : t('toast.llmPromptGenerationFailed'),
+      t('extensionName')
+    );
+    return {
+      status: 'skipped',
+      reason: 'no-inserted-prompts',
+      promptCount: prompts.length,
+      insertedCount: 0,
+      appendedCount,
+    };
+  }
+
+  message.mes = finalText;
+  await saveMetadata();
+  logger.info(
+    `Inserted ${totalInserted} prompt tags into message (${appendedCount} appended at end)`
+  );
+
+  try {
+    await sessionManager.startStreamingSession(messageId, context, settings);
+    sessionManager.setupStreamingCompletion(messageId, context, settings);
+  } catch (error) {
+    logger.error(
+      `Error processing Independent API message ${messageId}:`,
+      error
+    );
+    toastr.warning(t('toast.failedToGenerate'), t('extensionName'));
+    return {
+      status: 'failed',
+      reason: 'session-start-failed',
+      promptCount: prompts.length,
+      insertedCount: totalInserted,
+      appendedCount,
+    };
+  }
+
+  if (source === 'manual') {
+    toastr.info(t('toast.manualIndependentStarted'), t('extensionName'));
+  }
+
+  return {
+    status: 'started',
+    reason: 'started',
+    promptCount: prompts.length,
+    insertedCount: totalInserted,
+    appendedCount,
+  };
+}
+
 /**
  * Handles MESSAGE_RECEIVED event
  * Finalizes streaming session if active, otherwise processes complete message
@@ -178,80 +348,14 @@ export async function handleMessageReceived(
       `No active session for message ${messageId}, processing as non-streaming message`
     );
 
-    // Check if LLM-based prompt generation is enabled
     if (isIndependentApiMode(settings.promptGenerationMode)) {
-      logger.info('LLM-based prompt generation enabled, generating prompts...');
-
-      try {
-        // Step 1: Call LLM to generate prompts
-        const prompts = await generatePromptsForMessage(
-          message.mes,
-          context,
-          settings
-        );
-
-        if (prompts.length === 0) {
-          logger.info('LLM returned no prompts, skipping image generation');
-          return;
-        }
-
-        logger.info(`LLM generated ${prompts.length} prompts`);
-
-        // Step 2: Insert prompt tags into message using context matching
-        const tagTemplate = settings.promptDetectionPatterns[0];
-        const insertionResult = insertPromptTagsWithContext(
-          message.mes,
-          prompts,
-          tagTemplate
-        );
-
-        // Step 2b: Fallback for failed suggestions - append at end
-        let finalText = insertionResult.updatedText;
-        let totalInserted = insertionResult.insertedCount;
-
-        if (insertionResult.failedSuggestions.length > 0) {
-          logger.warn(
-            `Failed to insert ${insertionResult.failedSuggestions.length} prompts (context not found), appending at end`
-          );
-
-          // Append failed prompts at the end of the message
-          const promptTagTemplate = tagTemplate.includes('{PROMPT}')
-            ? tagTemplate
-            : '<!--img-prompt="{PROMPT}"-->';
-
-          for (const failed of insertionResult.failedSuggestions) {
-            const promptTag = promptTagTemplate.replace(
-              '{PROMPT}',
-              failed.text
-            );
-            finalText += ` ${promptTag}`;
-            totalInserted++;
-            logger.debug(
-              `Appended failed prompt at end: "${failed.text.substring(0, 50)}..."`
-            );
-          }
-        }
-
-        if (totalInserted === 0) {
-          logger.warn('No prompts generated or inserted');
-          toastr.warning(
-            'Failed to generate image prompts (LLM returned no valid prompts)',
-            'Warning'
-          );
-          return;
-        }
-
-        // Step 3: Save updated message with prompt tags
-        message.mes = finalText;
-        await saveMetadata();
-        logger.info(
-          `Inserted ${totalInserted} prompt tags into message (${insertionResult.failedSuggestions.length} appended at end)`
-        );
-      } catch (error) {
-        logger.error('LLM prompt generation failed:', error);
-        toastr.warning('Failed to generate image prompts', 'Warning');
-        return;
-      }
+      await runIndependentApiGenerationForMessage(
+        messageId,
+        context,
+        settings,
+        'automatic'
+      );
+      return;
     }
 
     // Process message with prompts (works for both regex and LLM modes)

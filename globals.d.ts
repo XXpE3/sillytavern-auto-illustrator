@@ -78,6 +78,8 @@ declare global {
     this_chid: number;
     saveSettingsDebounced(): void;
     saveChat(): Promise<void>;
+    saveMetadata?(): Promise<void>;
+    saveMetadataDebounced?(): void;
     setExtensionPrompt(
       key: string,
       value: string,
@@ -107,6 +109,10 @@ declare global {
     }): Promise<string>;
   }
   /* eslint-enable @typescript-eslint/no-explicit-any */
+
+  let SillyTavern: {
+    getContext(): SillyTavernContext;
+  };
 
   // Extension-specific types
 

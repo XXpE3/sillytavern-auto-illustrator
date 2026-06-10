@@ -219,7 +219,7 @@ export async function generatePromptsForMessage(
     logger.trace('Raw LLM response:', llmResponse);
   } catch (error) {
     logger.error('LLM generation failed:', error);
-    return []; // Return empty array instead of throwing
+    throw error;
   }
 
   // Parse response

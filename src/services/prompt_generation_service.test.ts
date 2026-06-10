@@ -289,20 +289,16 @@ REASONING: Second
       expect(result[0].text).toBe('prompt1');
     });
 
-    it('should return empty array when generateRaw throws error', async () => {
+    it('should reject when generateRaw throws error', async () => {
       const messageText = 'Test message.';
 
       vi.mocked(mockContext.generateRaw).mockRejectedValue(
         new Error('LLM error')
       );
 
-      const result = await generatePromptsForMessage(
-        messageText,
-        mockContext,
-        mockSettings
-      );
-
-      expect(result).toHaveLength(0);
+      await expect(
+        generatePromptsForMessage(messageText, mockContext, mockSettings)
+      ).rejects.toThrow('LLM error');
     });
 
     it('should throw error when generateRaw is not available', async () => {

@@ -10,6 +10,7 @@ import {loadSettings} from './settings';
 import {clearProgressWidgetState} from './progress_widget';
 import {getStreamingPreviewWidget} from './index';
 import {addImageClickHandlers} from './manual_generation';
+import {addIndependentApiManualTriggerButtons} from './manual_independent_trigger';
 
 // Types are in globals.d.ts (no need to import)
 
@@ -107,11 +108,12 @@ export function executeChatChangeOperations(): void {
       updateUIFn();
     }
 
-    // Step 5: Re-add click handlers to all images when chat changes
+    // Step 5: Re-add click handlers and Independent API manual triggers when chat changes
     // Use setTimeout to ensure DOM is ready
     setTimeout(() => {
       logger.trace('Re-adding image click handlers');
       addImageClickHandlers(newSettings);
+      addIndependentApiManualTriggerButtons(newSettings);
     }, 100);
 
     logger.debug('Chat change operations completed successfully');
