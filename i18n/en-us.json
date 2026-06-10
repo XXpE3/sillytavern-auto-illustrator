@@ -195,6 +195,7 @@
   "toast.llmPromptGenerationFailed": "Failed to generate image prompts. You can retry with the manual button.",
   "toast.noPromptsGenerated": "No image prompts were generated for this message",
   "toast.manualIndependentStarted": "Generating image prompts and images for this message...",
+  "toast.manualIndependentAlreadyRunning": "Prompt generation is already running for this message.",
   "toast.warning": "Warning",
   "streamingPreview.title": "Live Preview",
   "streamingPreview.minimize": "Minimize",

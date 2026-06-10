@@ -1266,13 +1266,23 @@ function registerEventHandlers(): void {
   const MESSAGE_RECEIVED = context.eventTypes.MESSAGE_RECEIVED;
   context.eventSource.on(MESSAGE_RECEIVED, (messageId: number) => {
     // Handle streaming finalization or non-streaming message processing
-    handleMessageReceived(messageId, context, settings);
+    const messageReceived = handleMessageReceived(messageId, context, settings);
 
-    // Add image click handlers and Independent API manual triggers after message is received
+    // Add image click handlers after message is received
     setTimeout(() => {
       addImageClickHandlers(settings);
-      addIndependentApiManualTriggerButtons(settings);
     }, 100);
+
+    // Add Independent API manual triggers only after automatic prompt generation settles
+    void messageReceived
+      .finally(() => {
+        setTimeout(() => {
+          addIndependentApiManualTriggerButtons(settings);
+        }, 100);
+      })
+      .catch(error => {
+        logger.error('Error handling MESSAGE_RECEIVED:', error);
+      });
   });
 
   // Add click handlers when messages are updated

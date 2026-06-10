@@ -450,5 +450,48 @@ REASONING: Handles newlines naturally
       expect(result[0].insertAfter).toBe('Test');
       expect(result[0].insertBefore).toBe('message with newlines');
     });
+    it('uses context messages before the target message only', async () => {
+      mockSettings.contextMessageCount = 2;
+      mockContext.chat = [
+        {mes: 'First user message', is_user: true, name: 'User'},
+        {mes: 'Target assistant message', is_user: false, name: 'Assistant'},
+        {mes: 'Future user message', is_user: true, name: 'User'},
+        {mes: 'Future assistant message', is_user: false, name: 'Assistant'},
+      ];
+      const llmResponse = `---PROMPT---
+TEXT: target prompt
+INSERT_AFTER: Target
+INSERT_BEFORE: message
+REASONING: Target message only
+---END---`;
+      vi.mocked(mockContext.generateRaw).mockResolvedValue(llmResponse);
+
+      await generatePromptsForMessage(
+        'Target assistant message',
+        mockContext,
+        mockSettings,
+        {targetMessageId: 1}
+      );
+
+      expect(mockContext.generateRaw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: expect.stringContaining(
+            '=== CONTEXT ===\nUser: First user message'
+          ),
+        })
+      );
+      expect(mockContext.generateRaw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: expect.not.stringContaining('Future user message'),
+        })
+      );
+      expect(mockContext.generateRaw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: expect.stringContaining(
+            '=== CURRENT MESSAGE ===\nTarget assistant message'
+          ),
+        })
+      );
+    });
   });
 });

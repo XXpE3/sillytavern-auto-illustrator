@@ -3,7 +3,10 @@ import {t} from './i18n';
 import {isIndependentApiMode} from './mode_utils';
 import {extractImagePromptsMultiPattern} from './regex';
 import {sessionManager} from './session_manager';
-import {runIndependentApiGenerationForMessage} from './message_handler';
+import {
+  isIndependentApiGenerationPending,
+  runIndependentApiGenerationForMessage,
+} from './message_handler';
 
 const logger = createLogger('ManualIndependentTrigger');
 
@@ -12,6 +15,13 @@ export const INDEPENDENT_MANUAL_TRIGGER_CLASS =
 
 function removeTriggerButton(messageEl: Element): void {
   messageEl.querySelector(`.${INDEPENDENT_MANUAL_TRIGGER_CLASS}`)?.remove();
+}
+
+function isManualTriggerBusy(messageId: number): boolean {
+  return (
+    sessionManager.isActive(messageId) ||
+    isIndependentApiGenerationPending(messageId)
+  );
 }
 
 export function addIndependentApiManualTriggerButtons(
@@ -68,13 +78,15 @@ export function attachIndependentApiManualTriggerButton(
     }
   } catch (error) {
     logger.error('Error detecting existing prompt tags:', error);
+    removeTriggerButton(messageEl);
+    return;
   }
 
   const existingButton = messageEl.querySelector(
     `.${INDEPENDENT_MANUAL_TRIGGER_CLASS}`
   ) as HTMLButtonElement | null;
   if (existingButton) {
-    existingButton.disabled = sessionManager.isActive(messageId);
+    existingButton.disabled = isManualTriggerBusy(messageId);
     return;
   }
 
@@ -88,14 +100,17 @@ export function attachIndependentApiManualTriggerButton(
     '<i class="fa-solid fa-wand-magic-sparkles"></i><span>' +
     t('button.manualIndependentGenerateShort') +
     '</span>';
-  button.disabled = sessionManager.isActive(messageId);
+  button.disabled = isManualTriggerBusy(messageId);
 
   button.addEventListener('click', async event => {
     event.preventDefault();
     event.stopPropagation();
 
-    if (sessionManager.isActive(messageId)) {
-      toastr.warning(t('toast.cannotManualWhileStreaming'), t('extensionName'));
+    if (isManualTriggerBusy(messageId)) {
+      toastr.warning(
+        t('toast.manualIndependentAlreadyRunning'),
+        t('extensionName')
+      );
       return;
     }
 
@@ -111,7 +126,7 @@ export function attachIndependentApiManualTriggerButton(
         'manual'
       );
 
-      if (result.status === 'started') {
+      if (result.status === 'started' || result.insertedCount > 0) {
         button.remove();
         return;
       }

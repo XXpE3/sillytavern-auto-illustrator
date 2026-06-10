@@ -12,7 +12,10 @@ import {
   attachIndependentApiManualTriggerButton,
   INDEPENDENT_MANUAL_TRIGGER_CLASS,
 } from './manual_independent_trigger';
-import {runIndependentApiGenerationForMessage} from './message_handler';
+import {
+  isIndependentApiGenerationPending,
+  runIndependentApiGenerationForMessage,
+} from './message_handler';
 import {sessionManager} from './session_manager';
 
 vi.mock('./logger', () => ({
@@ -32,6 +35,7 @@ vi.mock('./session_manager', () => ({
 }));
 
 vi.mock('./message_handler', () => ({
+  isIndependentApiGenerationPending: vi.fn(),
   runIndependentApiGenerationForMessage: vi.fn(),
 }));
 
@@ -93,6 +97,7 @@ describe('manual_independent_trigger', () => {
     mockSessionManager = sessionManager as unknown as MockSessionManager;
     vi.clearAllMocks();
     mockSessionManager.isActive.mockReturnValue(false);
+    vi.mocked(isIndependentApiGenerationPending).mockReturnValue(false);
     vi.mocked(runIndependentApiGenerationForMessage).mockResolvedValue({
       status: 'skipped',
       reason: 'no-prompts',
@@ -167,6 +172,23 @@ describe('manual_independent_trigger', () => {
     ).toBeNull();
   });
 
+  it('does not render when prompt detection settings are invalid', () => {
+    const context = createContext(
+      'Assistant <!--img-prompt="forest"--> message'
+    );
+    mockSillyTavern.getContext = vi.fn().mockReturnValue(context);
+    appendMessageElement();
+
+    addIndependentApiManualTriggerButtons({
+      ...createSettings(),
+      promptDetectionPatterns: ['['],
+    });
+
+    expect(
+      document.querySelector(`.${INDEPENDENT_MANUAL_TRIGGER_CLASS}`)
+    ).toBeNull();
+  });
+
   it('clicking the trigger calls the shared Independent API flow and removes started buttons', async () => {
     const context = createContext();
     appendMessageElement();
@@ -212,5 +234,46 @@ describe('manual_independent_trigger', () => {
     expect(button?.disabled).toBe(true);
     button?.click();
     expect(runIndependentApiGenerationForMessage).not.toHaveBeenCalled();
+  });
+
+  it('disables the trigger while Independent API prompt generation is pending', () => {
+    const context = createContext();
+    appendMessageElement();
+    vi.mocked(isIndependentApiGenerationPending).mockReturnValue(true);
+
+    attachIndependentApiManualTriggerButton(0, context, createSettings());
+    const button = document.querySelector(
+      `.${INDEPENDENT_MANUAL_TRIGGER_CLASS}`
+    ) as HTMLButtonElement | null;
+
+    expect(button?.disabled).toBe(true);
+    button?.click();
+    expect(runIndependentApiGenerationForMessage).not.toHaveBeenCalled();
+  });
+
+  it('removes the trigger when prompt tags were inserted but session start failed', async () => {
+    const context = createContext();
+    appendMessageElement();
+    vi.mocked(runIndependentApiGenerationForMessage).mockResolvedValue({
+      status: 'failed',
+      reason: 'session-start-failed',
+      promptCount: 1,
+      insertedCount: 1,
+      appendedCount: 0,
+    });
+
+    attachIndependentApiManualTriggerButton(0, context, createSettings());
+    const button = document.querySelector(
+      `.${INDEPENDENT_MANUAL_TRIGGER_CLASS}`
+    ) as HTMLButtonElement | null;
+    expect(button).not.toBeNull();
+
+    button?.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(
+      document.querySelector(`.${INDEPENDENT_MANUAL_TRIGGER_CLASS}`)
+    ).toBeNull();
   });
 });

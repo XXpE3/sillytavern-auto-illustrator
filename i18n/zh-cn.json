@@ -195,6 +195,7 @@
   "toast.llmPromptGenerationFailed": "图像提示词生成失败。可以点击手动按钮重试。",
   "toast.noPromptsGenerated": "此消息未生成图像提示词",
   "toast.manualIndependentStarted": "正在为此消息生成图像提示词和图像...",
+  "toast.manualIndependentAlreadyRunning": "此消息正在生成图像提示词。",
   "toast.warning": "警告",
   "streamingPreview.title": "实时预览",
   "streamingPreview.minimize": "最小化",

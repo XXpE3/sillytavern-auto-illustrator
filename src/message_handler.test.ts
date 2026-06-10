@@ -18,6 +18,7 @@ import {
   handleChatChanged,
   cancelAllDelayedReconciliations,
   runIndependentApiGenerationForMessage,
+  isIndependentApiGenerationPending,
 } from './message_handler';
 import {generatePromptsForMessage} from './services/prompt_generation_service';
 import {insertPromptTagsWithContext} from './prompt_insertion';
@@ -194,6 +195,12 @@ describe('Message Handler V2', () => {
         'manual'
       );
 
+      expect(generatePromptsForMessage).toHaveBeenCalledWith(
+        'Message 1',
+        mockContext,
+        mockSettings,
+        {targetMessageId: 1}
+      );
       expect(mockContext.chat[1].mes).toBe(
         'Message <!--img-prompt="forest, moonlight"--> 1'
       );
@@ -285,6 +292,61 @@ describe('Message Handler V2', () => {
       );
       expect(generatePromptsForMessage).not.toHaveBeenCalled();
       expect(mockSessionManager.startStreamingSession).not.toHaveBeenCalled();
+    });
+
+    it('should skip duplicate prompt generation while one is already pending', async () => {
+      let resolvePrompts: (
+        value: Awaited<ReturnType<typeof generatePromptsForMessage>>
+      ) => void = () => {};
+      const pendingPrompts = new Promise<
+        Awaited<ReturnType<typeof generatePromptsForMessage>>
+      >(resolve => {
+        resolvePrompts = resolve;
+      });
+      vi.mocked(generatePromptsForMessage).mockReturnValueOnce(pendingPrompts);
+      vi.mocked(insertPromptTagsWithContext).mockReturnValue({
+        updatedText: 'Message <!--img-prompt="forest"--> 1',
+        insertedCount: 1,
+        failedSuggestions: [],
+      });
+
+      const firstRun = runIndependentApiGenerationForMessage(
+        1,
+        mockContext,
+        mockSettings,
+        'automatic'
+      );
+      await Promise.resolve();
+
+      const secondRun = await runIndependentApiGenerationForMessage(
+        1,
+        mockContext,
+        mockSettings,
+        'manual'
+      );
+
+      expect(secondRun).toMatchObject({
+        status: 'skipped',
+        reason: 'prompt-generation-in-progress',
+      });
+      expect(toastr.warning).toHaveBeenCalledWith(
+        'toast.manualIndependentAlreadyRunning',
+        'extensionName'
+      );
+      expect(generatePromptsForMessage).toHaveBeenCalledTimes(1);
+      expect(isIndependentApiGenerationPending(1)).toBe(true);
+
+      resolvePrompts([
+        {
+          text: 'forest',
+          insertAfter: 'Message',
+          insertBefore: '1',
+          reasoning: 'visual scene',
+        },
+      ]);
+      await firstRun;
+
+      expect(isIndependentApiGenerationPending(1)).toBe(false);
     });
   });
 
