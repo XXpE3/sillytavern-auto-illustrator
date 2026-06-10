@@ -109,7 +109,7 @@ By following these instructions, you will ensure all contributions are high-qual
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **sillytavern-auto-illustrator** (2979 symbols, 6786 relationships, 251 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **sillytavern-auto-illustrator** (3072 symbols, 6983 relationships, 262 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
