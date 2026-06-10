@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Independent API Chat Switching** - Scoped pending Independent API prompt generation by chat so slow prompt requests no longer block manual or automatic retries for the same message index after switching chats.
+
 - **Independent API Manual Retry Safety** - Prevented duplicate Independent API prompt-generation calls from automatic and per-message manual retries running concurrently on the same message.
 
 - **Image Click Handlers (Race Condition + Selector Bug + HTML Encoding)** - Fixed critical bug where click handlers failed to attach to images, especially failed generation placeholders

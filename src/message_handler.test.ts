@@ -334,7 +334,7 @@ describe('Message Handler V2', () => {
         'extensionName'
       );
       expect(generatePromptsForMessage).toHaveBeenCalledTimes(1);
-      expect(isIndependentApiGenerationPending(1)).toBe(true);
+      expect(isIndependentApiGenerationPending(1, mockContext)).toBe(true);
 
       resolvePrompts([
         {
@@ -346,7 +346,86 @@ describe('Message Handler V2', () => {
       ]);
       await firstRun;
 
-      expect(isIndependentApiGenerationPending(1)).toBe(false);
+      expect(isIndependentApiGenerationPending(1, mockContext)).toBe(false);
+    });
+
+    it('scopes pending prompt generation by chat instance', async () => {
+      let resolveOldPrompts: (
+        value: Awaited<ReturnType<typeof generatePromptsForMessage>>
+      ) => void = () => {};
+      let resolveNewPrompts: (
+        value: Awaited<ReturnType<typeof generatePromptsForMessage>>
+      ) => void = () => {};
+      const oldPendingPrompts = new Promise<
+        Awaited<ReturnType<typeof generatePromptsForMessage>>
+      >(resolve => {
+        resolveOldPrompts = resolve;
+      });
+      const newPendingPrompts = new Promise<
+        Awaited<ReturnType<typeof generatePromptsForMessage>>
+      >(resolve => {
+        resolveNewPrompts = resolve;
+      });
+      const newContext = {
+        ...mockContext,
+        chat: [
+          {mes: 'New Message 0', is_user: true},
+          {mes: 'New Message 1', is_user: false, name: 'Assistant'},
+        ],
+      } as unknown as SillyTavernContext;
+      vi.mocked(generatePromptsForMessage)
+        .mockReturnValueOnce(oldPendingPrompts)
+        .mockReturnValueOnce(newPendingPrompts);
+      vi.mocked(insertPromptTagsWithContext).mockReturnValue({
+        updatedText: 'Message <!--img-prompt="forest"--> 1',
+        insertedCount: 1,
+        failedSuggestions: [],
+      });
+
+      const oldRun = runIndependentApiGenerationForMessage(
+        1,
+        mockContext,
+        mockSettings,
+        'automatic'
+      );
+      await Promise.resolve();
+
+      const newRun = runIndependentApiGenerationForMessage(
+        1,
+        newContext,
+        mockSettings,
+        'manual'
+      );
+      await Promise.resolve();
+
+      expect(generatePromptsForMessage).toHaveBeenCalledTimes(2);
+      expect(isIndependentApiGenerationPending(1, mockContext)).toBe(true);
+      expect(isIndependentApiGenerationPending(1, newContext)).toBe(true);
+
+      resolveOldPrompts([
+        {
+          text: 'forest',
+          insertAfter: 'Message',
+          insertBefore: '1',
+          reasoning: 'visual scene',
+        },
+      ]);
+      await oldRun;
+
+      expect(isIndependentApiGenerationPending(1, mockContext)).toBe(false);
+      expect(isIndependentApiGenerationPending(1, newContext)).toBe(true);
+
+      resolveNewPrompts([
+        {
+          text: 'river',
+          insertAfter: 'New Message',
+          insertBefore: '1',
+          reasoning: 'visual scene',
+        },
+      ]);
+      await newRun;
+
+      expect(isIndependentApiGenerationPending(1, newContext)).toBe(false);
     });
   });
 

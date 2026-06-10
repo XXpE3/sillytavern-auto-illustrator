@@ -24,11 +24,25 @@ import {t} from './i18n';
 
 const logger = createLogger('MessageHandler');
 
-// Map of messageId -> timeout ID for delayed reconciliations
-const independentApiGenerationInProgress = new Set<number>();
+const independentApiGenerationInProgress = new WeakMap<object, Set<number>>();
 
-export function isIndependentApiGenerationPending(messageId: number): boolean {
-  return independentApiGenerationInProgress.has(messageId);
+function getIndependentApiGenerationSet(
+  context: SillyTavernContext
+): Set<number> {
+  const chat = context.chat;
+  let pendingMessageIds = independentApiGenerationInProgress.get(chat);
+  if (!pendingMessageIds) {
+    pendingMessageIds = new Set<number>();
+    independentApiGenerationInProgress.set(chat, pendingMessageIds);
+  }
+  return pendingMessageIds;
+}
+
+export function isIndependentApiGenerationPending(
+  messageId: number,
+  context: SillyTavernContext
+): boolean {
+  return getIndependentApiGenerationSet(context).has(messageId);
 }
 
 const delayedReconciliations = new Map<number, NodeJS.Timeout>();
@@ -203,7 +217,8 @@ export async function runIndependentApiGenerationForMessage(
     return emptyResult('skipped', 'active-session');
   }
 
-  if (independentApiGenerationInProgress.has(messageId)) {
+  const pendingMessageIds = getIndependentApiGenerationSet(context);
+  if (pendingMessageIds.has(messageId)) {
     if (source === 'manual') {
       toastr.warning(
         t('toast.manualIndependentAlreadyRunning'),
@@ -213,7 +228,7 @@ export async function runIndependentApiGenerationForMessage(
     return emptyResult('skipped', 'prompt-generation-in-progress');
   }
 
-  independentApiGenerationInProgress.add(messageId);
+  pendingMessageIds.add(messageId);
 
   try {
     let prompts: PromptSuggestion[];
@@ -324,7 +339,7 @@ export async function runIndependentApiGenerationForMessage(
       appendedCount,
     };
   } finally {
-    independentApiGenerationInProgress.delete(messageId);
+    pendingMessageIds.delete(messageId);
   }
 }
 

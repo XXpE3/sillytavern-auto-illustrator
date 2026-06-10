@@ -17,10 +17,13 @@ function removeTriggerButton(messageEl: Element): void {
   messageEl.querySelector(`.${INDEPENDENT_MANUAL_TRIGGER_CLASS}`)?.remove();
 }
 
-function isManualTriggerBusy(messageId: number): boolean {
+function isManualTriggerBusy(
+  messageId: number,
+  context: SillyTavernContext
+): boolean {
   return (
     sessionManager.isActive(messageId) ||
-    isIndependentApiGenerationPending(messageId)
+    isIndependentApiGenerationPending(messageId, context)
   );
 }
 
@@ -86,7 +89,7 @@ export function attachIndependentApiManualTriggerButton(
     `.${INDEPENDENT_MANUAL_TRIGGER_CLASS}`
   ) as HTMLButtonElement | null;
   if (existingButton) {
-    existingButton.disabled = isManualTriggerBusy(messageId);
+    existingButton.disabled = isManualTriggerBusy(messageId, context);
     return;
   }
 
@@ -100,13 +103,13 @@ export function attachIndependentApiManualTriggerButton(
     '<i class="fa-solid fa-wand-magic-sparkles"></i><span>' +
     t('button.manualIndependentGenerateShort') +
     '</span>';
-  button.disabled = isManualTriggerBusy(messageId);
+  button.disabled = isManualTriggerBusy(messageId, context);
 
   button.addEventListener('click', async event => {
     event.preventDefault();
     event.stopPropagation();
 
-    if (isManualTriggerBusy(messageId)) {
+    if (isManualTriggerBusy(messageId, context)) {
       toastr.warning(
         t('toast.manualIndependentAlreadyRunning'),
         t('extensionName')
