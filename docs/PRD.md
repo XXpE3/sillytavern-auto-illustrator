@@ -757,6 +757,8 @@ Result:
 
 **PROMPT-GEN-005**: Independent API mode shows clear warning about additional API cost (+1 call per message)
 
+**PROMPT-GEN-006**: Independent API mode shows a per-message manual trigger button on assistant messages that do not yet contain prompt tags, allowing users to retry prompt generation after network or LLM server failures.
+
 ### 9.3 Shared API Call Mode (Default)
 
 **Characteristics:**
@@ -923,6 +925,12 @@ Result: Extension doesn't interfere with custom API calls
 - **User Sees**: No notification (not user's fault)
 - **System Logs**: "Message not found during insertion"
 - **Recovery**: Generation completes but insertion skipped, progress cleared
+- **Continues**: Extension remains functional
+
+**ERROR-LLM-PROMPT**: Independent API prompt generation failure
+- **User Sees**: Toast notification "Failed to generate image prompts. You can retry with the manual button."
+- **System Logs**: Full LLM/network error details
+- **Recovery**: Message text remains unchanged without prompt tags, and the Independent API manual trigger remains available for retry
 - **Continues**: Extension remains functional
 
 **ERROR-SETTINGS**: Invalid settings detected

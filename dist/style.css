@@ -1417,6 +1417,22 @@
   cursor: not-allowed;
 }
 
+.auto_illustrator_independent_manual_trigger {
+  color: #9b59b6 !important;
+  cursor: pointer;
+  gap: 0.25rem;
+}
+
+.auto_illustrator_independent_manual_trigger:hover:not(:disabled) {
+  color: #bb79d6 !important;
+}
+
+.auto_illustrator_independent_manual_trigger:disabled,
+.auto_illustrator_independent_manual_trigger.is-running {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Manual Generation Dialog Backdrop */
 .auto-illustrator-dialog-backdrop {
   position: fixed;

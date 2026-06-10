@@ -16,6 +16,7 @@ import {
   handleGenerationEnded,
 } from './message_handler';
 import {addImageClickHandlers} from './manual_generation';
+import {addIndependentApiManualTriggerButtons} from './manual_independent_trigger';
 import {
   loadSettings,
   saveSettings,
@@ -829,6 +830,7 @@ function handleSettingsChange(): void {
 
   // Update validation status after settings change
   updateValidationStatus();
+  addIndependentApiManualTriggerButtons(settings);
 
   // Notify user if enable state or widget visibility changed
   if (
@@ -872,6 +874,7 @@ function handleResetSettings(): void {
   settings = getDefaultSettings();
   saveSettings(settings, context);
   updateUI();
+  addIndependentApiManualTriggerButtons(settings);
 
   logger.info('Settings reset to defaults');
 }
@@ -1263,12 +1266,23 @@ function registerEventHandlers(): void {
   const MESSAGE_RECEIVED = context.eventTypes.MESSAGE_RECEIVED;
   context.eventSource.on(MESSAGE_RECEIVED, (messageId: number) => {
     // Handle streaming finalization or non-streaming message processing
-    handleMessageReceived(messageId, context, settings);
+    const messageReceived = handleMessageReceived(messageId, context, settings);
 
     // Add image click handlers after message is received
     setTimeout(() => {
       addImageClickHandlers(settings);
     }, 100);
+
+    // Add Independent API manual triggers only after automatic prompt generation settles
+    void messageReceived
+      .finally(() => {
+        setTimeout(() => {
+          addIndependentApiManualTriggerButtons(settings);
+        }, 100);
+      })
+      .catch(error => {
+        logger.error('Error handling MESSAGE_RECEIVED:', error);
+      });
   });
 
   // Add click handlers when messages are updated
@@ -1276,6 +1290,7 @@ function registerEventHandlers(): void {
   context.eventSource.on(MESSAGE_UPDATED, () => {
     setTimeout(() => {
       addImageClickHandlers(settings);
+      addIndependentApiManualTriggerButtons(settings);
     }, 100);
   });
 
@@ -1675,8 +1690,9 @@ function initialize(): void {
   // Note: CHAT_CHANGED is now handled by chat_changed_handler module
   // which orchestrates all chat change operations in the correct order
 
-  // Add click handlers to existing images
+  // Add click handlers and Independent API manual triggers to existing messages
   addImageClickHandlers(settings);
+  addIndependentApiManualTriggerButtons(settings);
 }
 
 // Initialize when extension loads

@@ -289,20 +289,16 @@ REASONING: Second
       expect(result[0].text).toBe('prompt1');
     });
 
-    it('should return empty array when generateRaw throws error', async () => {
+    it('should reject when generateRaw throws error', async () => {
       const messageText = 'Test message.';
 
       vi.mocked(mockContext.generateRaw).mockRejectedValue(
         new Error('LLM error')
       );
 
-      const result = await generatePromptsForMessage(
-        messageText,
-        mockContext,
-        mockSettings
-      );
-
-      expect(result).toHaveLength(0);
+      await expect(
+        generatePromptsForMessage(messageText, mockContext, mockSettings)
+      ).rejects.toThrow('LLM error');
     });
 
     it('should throw error when generateRaw is not available', async () => {
@@ -453,6 +449,49 @@ REASONING: Handles newlines naturally
       // The regex captures only the first line for INSERT_AFTER/INSERT_BEFORE
       expect(result[0].insertAfter).toBe('Test');
       expect(result[0].insertBefore).toBe('message with newlines');
+    });
+    it('uses context messages before the target message only', async () => {
+      mockSettings.contextMessageCount = 2;
+      mockContext.chat = [
+        {mes: 'First user message', is_user: true, name: 'User'},
+        {mes: 'Target assistant message', is_user: false, name: 'Assistant'},
+        {mes: 'Future user message', is_user: true, name: 'User'},
+        {mes: 'Future assistant message', is_user: false, name: 'Assistant'},
+      ];
+      const llmResponse = `---PROMPT---
+TEXT: target prompt
+INSERT_AFTER: Target
+INSERT_BEFORE: message
+REASONING: Target message only
+---END---`;
+      vi.mocked(mockContext.generateRaw).mockResolvedValue(llmResponse);
+
+      await generatePromptsForMessage(
+        'Target assistant message',
+        mockContext,
+        mockSettings,
+        {targetMessageId: 1}
+      );
+
+      expect(mockContext.generateRaw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: expect.stringContaining(
+            '=== CONTEXT ===\nUser: First user message'
+          ),
+        })
+      );
+      expect(mockContext.generateRaw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: expect.not.stringContaining('Future user message'),
+        })
+      );
+      expect(mockContext.generateRaw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: expect.stringContaining(
+            '=== CURRENT MESSAGE ===\nTarget assistant message'
+          ),
+        })
+      );
     });
   });
 });
