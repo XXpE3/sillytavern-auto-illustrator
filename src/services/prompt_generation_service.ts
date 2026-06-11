@@ -6,6 +6,7 @@
 import {createLogger} from '../logger';
 import promptGenerationTemplate from '../presets/prompt_generation.md';
 import type {PromptSuggestion} from '../prompt_insertion';
+import {generateTextWithOptionalModelOverride} from './llm_generation_service';
 
 const logger = createLogger('PromptGenService');
 
@@ -184,12 +185,6 @@ export async function generatePromptsForMessage(
   logger.info('Generating image prompts using separate LLM call');
   logger.debug(`Message length: ${messageText.length} characters`);
 
-  // Check for LLM availability
-  if (!context.generateRaw) {
-    logger.error('generateRaw not available in context');
-    throw new Error('LLM generation not available');
-  }
-
   // Build system prompt with all instructions from template
   let systemPrompt = promptGenerationTemplate;
 
@@ -215,18 +210,20 @@ export async function generatePromptsForMessage(
     options.targetMessageId
   );
 
-  logger.debug('Calling LLM for prompt generation (using generateRaw)');
+  logger.debug('Calling LLM for prompt generation');
   logger.debug('Context message count:', contextMessageCount);
   logger.debug('User prompt length:', userPrompt.length);
   logger.trace('User prompt:', userPrompt);
 
-  // Call LLM with generateRaw (no chat context)
+  // Call LLM without chat context.
   let llmResponse: string;
   try {
-    llmResponse = await context.generateRaw({
+    llmResponse = await generateTextWithOptionalModelOverride(
+      context,
       systemPrompt,
-      prompt: userPrompt,
-    });
+      userPrompt,
+      settings.llmPromptModelId
+    );
 
     logger.debug('LLM response received');
     logger.trace('Raw LLM response:', llmResponse);

@@ -262,6 +262,12 @@ export function createSettingsUI(): string {
             </label>
           </div>
 
+          <label for="${UI_ELEMENT_IDS.LLM_PROMPT_MODEL_ID}">
+            <span>${t('settings.llmPromptModelId')}</span>
+            <small>${t('settings.llmPromptModelIdDesc')}</small>
+            <input id="${UI_ELEMENT_IDS.LLM_PROMPT_MODEL_ID}" class="text_pole" type="text" />
+          </label>
+
           <div id="${UI_ELEMENT_IDS.INDEPENDENT_API_SETTINGS_CONTAINER}" style="display: none;">
             <label for="${UI_ELEMENT_IDS.MAX_PROMPTS_PER_MESSAGE}">
               <span>${t('settings.maxPromptsPerMessage')}</span>

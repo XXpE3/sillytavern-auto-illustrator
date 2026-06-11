@@ -165,6 +165,9 @@ function updateUI(): void {
   const promptGenModeLLMRadio = document.getElementById(
     UI_ELEMENT_IDS.PROMPT_GENERATION_MODE_INDEPENDENT
   ) as HTMLInputElement;
+  const llmPromptModelIdInput = document.getElementById(
+    UI_ELEMENT_IDS.LLM_PROMPT_MODEL_ID
+  ) as HTMLInputElement;
   const maxPromptsPerMessageInput = document.getElementById(
     UI_ELEMENT_IDS.MAX_PROMPTS_PER_MESSAGE
   ) as HTMLInputElement;
@@ -230,6 +233,10 @@ function updateUI(): void {
       promptGenModeRegexRadio.checked = true;
       promptGenModeLLMRadio.checked = false;
     }
+  }
+
+  if (llmPromptModelIdInput) {
+    llmPromptModelIdInput.value = settings.llmPromptModelId || '';
   }
 
   // Toggle independent API settings visibility based on current mode
@@ -512,6 +519,9 @@ function handleSettingsChange(): void {
   const llmPromptWritingGuidelinesTextarea = document.getElementById(
     UI_ELEMENT_IDS.LLM_PROMPT_WRITING_GUIDELINES
   ) as HTMLTextAreaElement;
+  const llmPromptModelIdInput = document.getElementById(
+    UI_ELEMENT_IDS.LLM_PROMPT_MODEL_ID
+  ) as HTMLInputElement;
   const imageDisplayWidthInput = document.getElementById(
     UI_ELEMENT_IDS.IMAGE_DISPLAY_WIDTH
   ) as HTMLInputElement;
@@ -723,6 +733,9 @@ function handleSettingsChange(): void {
   settings.llmPromptWritingGuidelines =
     llmPromptWritingGuidelinesTextarea?.value ??
     settings.llmPromptWritingGuidelines;
+
+  settings.llmPromptModelId =
+    llmPromptModelIdInput?.value.trim() ?? settings.llmPromptModelId;
 
   settings.showGalleryWidget =
     showGalleryWidgetCheckbox?.checked ?? settings.showGalleryWidget;
@@ -1593,6 +1606,9 @@ function initialize(): void {
     const llmPromptWritingGuidelinesResetButton = document.getElementById(
       UI_ELEMENT_IDS.LLM_PROMPT_WRITING_GUIDELINES_RESET
     );
+    const llmPromptModelIdInput = document.getElementById(
+      UI_ELEMENT_IDS.LLM_PROMPT_MODEL_ID
+    ) as HTMLInputElement;
     const resetButton = document.getElementById(UI_ELEMENT_IDS.RESET_BUTTON);
 
     enabledCheckbox?.addEventListener('change', handleSettingsChange);
@@ -1631,6 +1647,7 @@ function initialize(): void {
       toggleIndependentApiSettingsVisibility();
       handleSettingsChange();
     });
+    llmPromptModelIdInput?.addEventListener('change', handleSettingsChange);
     maxPromptsPerMessageInput?.addEventListener('change', handleSettingsChange);
     contextMessageCountInput?.addEventListener('change', handleSettingsChange);
     metaPromptDepthInput?.addEventListener('change', handleSettingsChange);

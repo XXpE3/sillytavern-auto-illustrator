@@ -334,7 +334,7 @@ Result:
 **REGEN-002**: Clicking an image shows a dialog with 3 options:
 1. **Regenerate (Replace)**: Remove old image, generate new one at same position
 2. **Regenerate (Append)**: Keep old image, generate new one with "(Regenerated N)" suffix
-3. **Update Prompt**: Use LLM to improve prompt based on user feedback
+3. **Update Prompt**: Use LLM to improve prompt based on user feedback. Uses the LLM Prompt Model ID override when configured.
 
 **REGEN-003**: In Append mode, track regeneration count per image (1st regen, 2nd regen, etc.)
 
@@ -661,6 +661,7 @@ Result: Operations run concurrently, no conflicts (different messages)
 | Meta Prompt Preset | Choice | list of presets | "default" | Active prompt template |
 | Meta Prompt Depth | Number | 0-20 (step: 1) | 0 | Insertion position in chat history (shared API mode only) |
 | Prompt Generation Mode | Choice | shared-api/independent-api | shared-api | How prompts are generated |
+| LLM Prompt Model ID | String | model ID or blank | "" | Optional model for Auto Illustrator's separate LLM calls; blank uses current SillyTavern model |
 | Max Prompts Per Message | Number | 1-30 (step: 1) | 5 | Limit for independent API mode |
 | Context Message Count | Number | 0-50 (step: 1) | 5 | Previous messages for context |
 | LLM Frequency Guidelines | String | multi-line | (default text) | When to generate prompts (independent API mode) |
@@ -788,6 +789,7 @@ Result:
 - AI generates normal response without prompt generation instructions
 - After response completes, separate API call generates image prompts
 - Context-aware: includes previous messages for better understanding
+- Uses LLM Prompt Model ID override when configured; blank follows the current SillyTavern model
 - Prompts inserted into message using context snippets (not byte offsets)
 - Chat history automatically pruned (removes prompt tags from future AI calls)
 - +1 API call per message (additional token cost)
@@ -797,6 +799,7 @@ Result:
 - **Context Message Count**: Number of previous messages to include (0-50, default: 5)
 - **LLM Frequency Guidelines**: Instructions for when to generate prompts
 - **LLM Prompt Writing Guidelines**: Instructions for how to write prompts
+- **LLM Prompt Model ID**: Optional model ID for Auto Illustrator's separate LLM calls; blank uses the current SillyTavern model
 
 **Prompt Insertion:**
 - Uses context snippets (`insertAfter`, `insertBefore`) instead of byte offsets
