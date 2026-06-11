@@ -15,6 +15,7 @@ import {
 import {getMetadata} from './metadata';
 import {DEFAULT_PROMPT_DETECTION_PATTERNS} from './constants';
 import {renderMessageUpdate} from './utils/message_renderer';
+import {generateTextWithOptionalModelOverride} from './services/llm_generation_service';
 
 // Re-export PromptNode type for consumers
 export type {PromptNode};
@@ -87,12 +88,6 @@ export async function generateUpdatedPrompt(
   const parentPromptId = parent.id;
   logger.debug('Current prompt:', currentPrompt);
 
-  // Check for LLM availability
-  if (!context.generateRaw) {
-    logger.error('generateRaw not available in context');
-    throw new Error('LLM generation not available');
-  }
-
   // Build system prompt and user prompt using template
   const systemPrompt =
     'You are a technical assistant helping to update image generation prompts. Output ONLY the updated prompt in HTML comment format. Do NOT write stories, explanations, or continue any roleplay.';
@@ -102,15 +97,17 @@ export async function generateUpdatedPrompt(
     .replace('{{{currentPrompt}}}', currentPrompt)
     .replace('{{{userFeedback}}}', userFeedback);
 
-  logger.debug('Sending prompt to LLM for update (using generateRaw)');
+  logger.debug('Sending prompt to LLM for update');
 
-  // Call LLM with generateRaw (no chat context)
+  // Call LLM without chat context.
   let llmResponse: string;
   try {
-    llmResponse = await context.generateRaw({
+    llmResponse = await generateTextWithOptionalModelOverride(
+      context,
       systemPrompt,
-      prompt: userPrompt,
-    });
+      userPrompt,
+      settings.llmPromptModelId
+    );
   } catch (error) {
     logger.error('LLM generation failed:', error);
     throw error;

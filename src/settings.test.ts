@@ -1,9 +1,11 @@
 import {describe, it, expect, beforeEach, vi} from 'vitest';
 import {createMockContext} from './test_helpers';
+import {initializeI18n} from './i18n';
 import {
   getDefaultSettings,
   loadSettings,
   saveSettings,
+  createSettingsUI,
   EXTENSION_NAME,
 } from './settings';
 
@@ -24,6 +26,7 @@ describe('settings', () => {
       expect(defaults.maxPromptsPerMessage).toBe(5);
       expect(defaults.llmFrequencyGuidelines).toBeTruthy();
       expect(defaults.llmPromptWritingGuidelines).toBeTruthy();
+      expect(defaults.llmPromptModelId).toBe('');
     });
   });
 
@@ -56,6 +59,7 @@ describe('settings', () => {
         contextMessageCount: 10,
         llmFrequencyGuidelines: 'test frequency',
         llmPromptWritingGuidelines: 'test writing',
+        llmPromptModelId: 'kimi-k2.6',
       };
 
       const mockContext = createMockContext({
@@ -74,6 +78,9 @@ describe('settings', () => {
       );
       expect(loaded.showProgressWidget).toEqual(
         existingSettings.showProgressWidget
+      );
+      expect(loaded.llmPromptModelId).toEqual(
+        existingSettings.llmPromptModelId
       );
     });
 
@@ -103,6 +110,7 @@ describe('settings', () => {
 
       expect(loaded.enabled).toBe(false);
       expect(loaded.metaPrompt).toBeTruthy(); // Should use default
+      expect(loaded.llmPromptModelId).toBe('');
     });
   });
 
@@ -137,6 +145,7 @@ describe('settings', () => {
         contextMessageCount: 10,
         llmFrequencyGuidelines: '',
         llmPromptWritingGuidelines: '',
+        llmPromptModelId: 'gpt-5.4-mini',
       };
 
       saveSettings(settings, mockContext);
@@ -180,6 +189,7 @@ describe('settings', () => {
         contextMessageCount: 15,
         llmFrequencyGuidelines: 'new frequency',
         llmPromptWritingGuidelines: 'new writing',
+        llmPromptModelId: '',
       };
 
       saveSettings(newSettings, mockContext);
@@ -270,6 +280,25 @@ describe('settings', () => {
       ).toBe('llm-post');
     });
 
+    it('should save LLM prompt model ID correctly', () => {
+      const mockSaveDebounced = vi.fn();
+      const mockContext = createMockContext({
+        extensionSettings: {},
+        saveSettingsDebounced: mockSaveDebounced,
+      });
+
+      const settings = {
+        ...getDefaultSettings(),
+        llmPromptModelId: 'kimi-k2.6',
+      };
+
+      saveSettings(settings, mockContext);
+
+      expect(
+        mockContext.extensionSettings[EXTENSION_NAME].llmPromptModelId
+      ).toBe('kimi-k2.6');
+    });
+
     it('should save LLM guidelines correctly', () => {
       const mockSaveDebounced = vi.fn();
       const mockContext = createMockContext({
@@ -292,6 +321,29 @@ describe('settings', () => {
       expect(
         mockContext.extensionSettings[EXTENSION_NAME].llmPromptWritingGuidelines
       ).toBe('Custom writing guidelines');
+    });
+  });
+
+  describe('createSettingsUI', () => {
+    it('renders LLM prompt model ID input and label text', () => {
+      initializeI18n(
+        createMockContext({
+          translate: (key: string) =>
+            ({
+              'settings.llmPromptModelId': 'LLM Model ID for Auto Illustrator',
+              'settings.llmPromptModelIdDesc':
+                "Optional. Applies to Auto Illustrator's separate LLM calls: Independent API prompt generation and Update Prompt. Leave blank to use SillyTavern's current model. Requires a Chat Completion/OpenAI-compatible connection when set.",
+            })[key] ?? key,
+        })
+      );
+
+      const html = createSettingsUI();
+
+      expect(html).toContain('auto_illustrator_llm_prompt_model_id');
+      expect(html).toContain('LLM Model ID for Auto Illustrator');
+      expect(html).toContain(
+        "Applies to Auto Illustrator's separate LLM calls"
+      );
     });
   });
 });

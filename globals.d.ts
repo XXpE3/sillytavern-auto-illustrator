@@ -107,6 +107,22 @@ declare global {
       prefill?: string;
       jsonSchema?: unknown;
     }): Promise<string>;
+    mainApi?: string;
+    chatCompletionSettings?: Record<string, unknown>;
+    ChatCompletionService?: {
+      presetToGeneratePayload(
+        preset: Record<string, unknown>,
+        overridePreset?: Record<string, unknown>,
+        overridePayload?: Record<string, unknown>
+      ): Promise<Record<string, unknown>>;
+      sendRequest(
+        data: Record<string, unknown>,
+        extractData?: boolean,
+        signal?: AbortSignal | null
+      ): Promise<
+        {content: string; reasoning?: string} | (() => AsyncGenerator<unknown>)
+      >;
+    };
   }
   /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -128,6 +144,7 @@ declare global {
     enabled: boolean;
     metaPrompt: string;
     metaPromptDepth: number;
+    llmPromptModelId: string;
     currentPresetId: string;
     customPresets: MetaPromptPreset[];
     streamingPollInterval: number;

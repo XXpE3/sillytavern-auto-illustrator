@@ -19,6 +19,7 @@ describe('prompt_generation_service', () => {
     mockSettings = {
       maxPromptsPerMessage: 5,
       promptGenerationMode: 'llm-post',
+      llmPromptModelId: '',
     } as AutoIllustratorSettings;
   });
 
@@ -287,6 +288,46 @@ REASONING: Second
 
       expect(result).toHaveLength(1);
       expect(result[0].text).toBe('prompt1');
+    });
+
+    it('uses ChatCompletionService when model override is configured', async () => {
+      mockSettings.llmPromptModelId = 'kimi-k2.6';
+      mockContext.mainApi = 'openai';
+      const payload = {model: 'kimi-k2.6'};
+      const llmResponse = `---PROMPT---
+TEXT: moonlit forest, silver fog
+INSERT_AFTER: enters
+INSERT_BEFORE: forest
+REASONING: Override model generated prompt
+---END---`;
+      const generateRaw = vi.mocked(mockContext.generateRaw);
+      mockContext.ChatCompletionService = {
+        presetToGeneratePayload: vi.fn().mockResolvedValue(payload),
+        sendRequest: vi.fn().mockResolvedValue({content: llmResponse}),
+      };
+
+      const result = await generatePromptsForMessage(
+        'She enters a moonlit forest with silver fog.',
+        mockContext,
+        mockSettings
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].text).toBe('moonlit forest, silver fog');
+      expect(generateRaw).not.toHaveBeenCalled();
+      expect(
+        mockContext.ChatCompletionService.presetToGeneratePayload
+      ).toHaveBeenCalledWith(
+        {},
+        {},
+        expect.objectContaining({
+          model: 'kimi-k2.6',
+          stream: false,
+        })
+      );
+      expect(
+        mockContext.ChatCompletionService.sendRequest
+      ).toHaveBeenCalledWith(payload, true);
     });
 
     it('should reject when generateRaw throws error', async () => {

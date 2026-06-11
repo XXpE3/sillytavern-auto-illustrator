@@ -181,6 +181,8 @@
   "settings.promptGenerationModeSharedDesc": "AI在主回复中嵌入提示词（更快，无额外API成本）",
   "settings.promptGenerationModeIndependent": "独立API调用（实验性）",
   "settings.promptGenerationModeIndependentDesc": "回复后单独API调用（AI回复更纯净，每条消息 +1 次API调用）",
+  "settings.llmPromptModelId": "Auto Illustrator 的 LLM 模型 ID",
+  "settings.llmPromptModelIdDesc": "可选。用于 Auto Illustrator 自己发起的独立 LLM 调用：独立 API 提示词生成和更新提示词。留空则使用 SillyTavern 当前模型。填写后需要当前连接是聊天补全或 OpenAI 兼容连接。",
   "settings.maxPromptsPerMessage": "每条消息的最大提示词数",
   "settings.maxPromptsPerMessageDesc": "成本控制：使用独立API生成时限制提示词数量（1-30）",
   "settings.contextMessageCount": "上下文消息数量",

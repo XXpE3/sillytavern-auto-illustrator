@@ -58,6 +58,7 @@ Automatically generates inline images in your SillyTavern conversations based on
   - Context-aware with configurable message history
   - Cost control with max prompts per message limit
   - Automatic chat history pruning
+  - Optional LLM Model ID setting can route Auto Illustrator's separate prompt generation calls to a different model on the current Chat Completion/OpenAI-compatible connection
 - ⚙️ **Widget Visibility Controls** (v1.3.0+): Show/hide Progress and Gallery widgets independently
 - 📝 **Smart Prompt Injection**: Meta-prompts are injected only when needed
 - 💾 **Persistent Images**: Generated images are automatically saved to chat history
@@ -133,6 +134,7 @@ Access settings via **Extensions** > **Auto Illustrator**
   - **INFO** (default): Key events and operations
   - **WARN/ERROR**: Only warnings and errors
   - **SILENT**: No console output
+- **LLM Model ID for Auto Illustrator**: Optional model ID for Auto Illustrator's separate LLM calls. Leave blank to use SillyTavern's current model. When set, it only affects Independent API prompt generation and Update Prompt, and requires a Chat Completion/OpenAI-compatible connection.
 - **Widget Visibility** (v1.3.0+):
   - **Show Progress Widget**: Toggle visibility of the progress indicator widget (default: enabled)
   - **Show Gallery Widget**: Toggle visibility of the permanent gallery widget (default: enabled)
@@ -233,6 +235,7 @@ When you're not satisfied with a generated image, you can update its prompt usin
 - The extension tracks the original prompt for each image
 - When you provide feedback, an LLM analyzes the current prompt and your feedback
 - It generates an improved prompt while maintaining the tag format
+- If **LLM Model ID for Auto Illustrator** is set, this prompt update call uses that model; blank uses SillyTavern's current model
 - Prompt history is preserved, so you can see how prompts evolved
 - All operations are queued to prevent conflicts with ongoing generation
 

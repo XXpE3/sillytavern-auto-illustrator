@@ -206,6 +206,7 @@ export const DEFAULT_SETTINGS = {
   contextMessageCount: CONTEXT_MESSAGE_COUNT.DEFAULT,
   llmFrequencyGuidelines: DEFAULT_LLM_FREQUENCY_GUIDELINES,
   llmPromptWritingGuidelines: DEFAULT_LLM_PROMPT_WRITING_GUIDELINES,
+  llmPromptModelId: '',
   finalReconciliationDelayMs: FINAL_RECONCILIATION_DELAY.DEFAULT,
   imageDisplayWidth: IMAGE_DISPLAY_WIDTH.DEFAULT,
 };
@@ -243,6 +244,7 @@ export const UI_ELEMENT_IDS = {
   PROMPT_GENERATION_MODE_SHARED: 'auto_illustrator_prompt_gen_mode_shared',
   PROMPT_GENERATION_MODE_INDEPENDENT:
     'auto_illustrator_prompt_gen_mode_independent',
+  LLM_PROMPT_MODEL_ID: 'auto_illustrator_llm_prompt_model_id',
   INDEPENDENT_API_SETTINGS_CONTAINER:
     'auto_illustrator_independent_api_settings_container',
   MAX_PROMPTS_PER_MESSAGE: 'auto_illustrator_max_prompts_per_message',

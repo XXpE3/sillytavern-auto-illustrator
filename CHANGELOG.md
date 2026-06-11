@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **LLM Model ID for Auto Illustrator** - Users can now specify a model ID for Auto Illustrator's separate Independent API prompt generation and Update Prompt calls while leaving it blank to keep using SillyTavern's current model.
+
 - **Independent API Manual Trigger** - Independent API mode now exposes a per-message manual trigger for retrying prompt generation after LLM/network failures.
 
 ### Fixed
