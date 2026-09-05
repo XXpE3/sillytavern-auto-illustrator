@@ -20,7 +20,7 @@ Automatically generates inline images in your SillyTavern conversations based on
   - Full prompt history tracked per image position
   - Optionally regenerate with the updated prompt
 - 🎯 **Preset Management**: Switch between predefined and custom meta-prompt presets
-  - Two predefined presets: Default and NAI 4.5 Full
+  - Three predefined presets: Default, NAI 4.5 Full, and NAI 5 Full
   - Create, edit, and delete custom presets
   - Preview preset content before editing
   - Customize image generation frequency via preset templates
@@ -150,6 +150,7 @@ The extension includes a preset management system for organizing and switching b
 **Predefined Presets:**
 - **Default**: General-purpose prompt template with basic image generation instructions
 - **NAI 4.5 Full**: Optimized for NovelAI Diffusion 4.5 with character consistency guidelines and Danbooru tag support
+- **NAI 5 Full**: Optimized for NovelAI Diffusion V5 with V5 complexity/alpha-transparency tags, visual novel styles, and multi-character support for up to 22 characters
 
 **Using Presets:**
 1. **Select a preset**: Choose from the dropdown to load a preset
@@ -160,7 +161,7 @@ The extension includes a preset management system for organizing and switching b
    - For predefined presets: **Save** is disabled, use **Save As** to create a custom variant
 5. **Save As**: Create a new custom preset with a unique name
    - Can overwrite existing custom presets with confirmation
-   - Cannot use predefined preset names (Default, NAI 4.5 Full)
+   - Cannot use predefined preset names (Default, NAI 4.5 Full, NAI 5 Full)
 6. **Delete preset**: Remove custom presets (predefined presets cannot be deleted)
 7. **Cancel**: Discard changes and exit edit mode
 
