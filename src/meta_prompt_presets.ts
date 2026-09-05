@@ -5,6 +5,7 @@
 
 import defaultTemplate from './presets/default.md';
 import nai45FullTemplate from './presets/nai-4.5-full.md';
+import nai5FullTemplate from './presets/nai-5-full.md';
 
 /**
  * Meta prompt preset interface
@@ -22,6 +23,7 @@ export interface MetaPromptPreset {
 export const PRESET_IDS = {
   DEFAULT: 'default',
   NAI_45_FULL: 'nai-4.5-full',
+  NAI_5_FULL: 'nai-5-full',
 } as const;
 
 /**
@@ -54,6 +56,12 @@ const PREDEFINED_PRESETS: MetaPromptPreset[] = [
     id: PRESET_IDS.NAI_45_FULL,
     name: 'NAI 4.5 Full',
     template: getNai45FullTemplate(),
+    predefined: true,
+  },
+  {
+    id: PRESET_IDS.NAI_5_FULL,
+    name: 'NAI 5 Full',
+    template: nai5FullTemplate.trim(),
     predefined: true,
   },
 ];

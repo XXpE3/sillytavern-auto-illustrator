@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Independent API Manual Trigger** - Independent API mode now exposes a per-message manual trigger for retrying prompt generation after LLM/network failures.
 
+- **NAI 5 Full Meta Prompt Preset** - Added a predefined "NAI 5 Full" preset (next to "NAI 4.5 Full") with prompt guidance for NovelAI Diffusion V5: new complexity tags (`high complexity` recommended), alpha transparency tags, visual novel style tags, up to 22 characters per scene with the pipe `|` multi-character syntax, and V5 token budget notes.
+
 ### Fixed
 
 - **Independent API Chat Switching** - Scoped pending Independent API prompt generation by chat so slow prompt requests no longer block manual or automatic retries for the same message index after switching chats.
