@@ -123,6 +123,7 @@ export function createSettingsUI(): string {
                 <optgroup label="${t('settings.predefinedPresets')}">
                   <option value="default">Default</option>
                   <option value="nai-4.5-full">NAI 4.5 Full</option>
+                  <option value="nai-5-full">NAI 5 Full</option>
                 </optgroup>
                 <optgroup label="${t('settings.customPresets')}" id="custom_presets_group">
                   <!-- populated by JavaScript -->

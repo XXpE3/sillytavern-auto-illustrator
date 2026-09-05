@@ -58,6 +58,7 @@ export const DEFAULT_LOG_LEVEL = LOG_LEVELS.INFO;
 export const PRESET_IDS = {
   DEFAULT: 'default',
   NAI_45_FULL: 'nai-4.5-full',
+  NAI_5_FULL: 'nai-5-full',
 } as const;
 
 /**
